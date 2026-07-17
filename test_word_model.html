@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>SignSpeak — Word Model Test</title>
+<style>
+  :root{
+    --bg-0:#0b0c0d; --bg-1:#151618; --bg-2:#1c1e21; --bg-3:#25282c;
+    --text-0:#c8c8cc; --text-1:#8a8d93; --text-2:#5a5d62;
+    --accent:#3aaa92; --accent-dim:#2c7d6b;
+    --shadow-soft: 0 8px 24px rgba(0,0,0,0.45);
+    --shadow-inset: inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+  *{box-sizing:border-box;}
+  html,body{ margin:0; height:100%; background:var(--bg-0); color:var(--text-0);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  #app{ height:100vh; height:100dvh; display:flex; flex-direction:column; }
+  header{ padding:18px 20px 12px; display:flex; align-items:baseline; justify-content:space-between; flex-shrink:0; }
+  .brand{ font-size:15px; font-weight:600; }
+  .brand span{ color:var(--accent); }
+  .note{ font-size:11px; color:var(--text-2); padding:0 20px 10px; }
+  .status-dot{ display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--text-2); text-transform:uppercase; }
+  .status-dot .dot{ width:6px; height:6px; border-radius:50%; background:var(--text-2); }
+  .status-dot.live .dot{ background:var(--accent); }
+  .status-dot.live{ color:var(--accent); }
+  #camera-wrap{ position:relative; margin:0 16px; border-radius:20px; overflow:hidden;
+    background:var(--bg-1); box-shadow:var(--shadow-soft), var(--shadow-inset); flex:1; min-height:0; }
+  video, canvas{ position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; }
+  video{ transform:scaleX(-1); }
+  #overlay{ transform:scaleX(-1); }
+  #startOverlay{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:16px; background:var(--bg-1); z-index:5; padding:24px; text-align:center; }
+  #startOverlay p{ color:var(--text-1); font-size:13px; max-width:280px; line-height:1.5; margin:0; }
+  button{ font-family:inherit; border:none; cursor:pointer; }
+  .btn-primary{ background:var(--accent); color:#0b0c0d; font-weight:600; font-size:14px;
+    padding:13px 28px; border-radius:14px; box-shadow:0 4px 14px rgba(58,170,146,0.25); }
+  .btn-primary:disabled{ opacity:0.5; }
+  footer{ flex-shrink:0; padding:16px 16px 20px; }
+  #recordBtn{ width:100%; background:var(--bg-2); color:var(--text-0); font-size:15px; font-weight:600;
+    padding:16px; border-radius:16px; box-shadow:var(--shadow-inset); margin-bottom:12px; }
+  #recordBtn.active{ background:var(--accent); color:#0b0c0d; }
+  #recordBtn:disabled{ opacity:0.4; }
+  #bufferInfo{ font-size:12px; color:var(--text-2); text-align:center; margin-bottom:14px; min-height:16px; }
+  #results{ display:flex; flex-direction:column; gap:8px; }
+  .result-row{ display:flex; align-items:center; gap:10px; background:var(--bg-2); border-radius:12px;
+    padding:10px 14px; box-shadow:var(--shadow-inset); }
+  .result-row.top{ background:var(--bg-3); }
+  .result-row.top .result-word{ color:var(--accent); }
+  .result-word{ font-size:13px; font-weight:600; width:60px; flex-shrink:0; text-transform:capitalize; }
+  .result-bar-track{ flex:1; height:6px; background:var(--bg-1); border-radius:4px; overflow:hidden; }
+  .result-bar{ height:100%; background:var(--accent); border-radius:4px; }
+  .result-pct{ font-size:11px; color:var(--text-2); width:44px; text-align:right; flex-shrink:0; }
+  .hidden{ display:none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">Sign<span>Speak</span> — Word Model Test</div>
+    <div class="status-dot" id="statusDot"><span class="dot"></span><span id="statusText">Idle</span></div>
+  </header>
+  <p class="note">Proof-of-concept model trained on 33 clips, 18 words. Expect rough accuracy — this tests the pipeline, not final quality.</p>
+
+  <div id="camera-wrap">
+    <video id="video" playsinline muted></video>
+    <canvas id="overlay"></canvas>
+    <div id="startOverlay">
+      <button class="btn-primary" id="startBtn">Start camera</button>
+      <p>Words this model knows: bad, book, drink, eat, go, good, hello, help, love, name, no, please, sorry, want, what, where, who, yes</p>
+    </div>
+  </div>
+
+  <footer>
+    <button id="recordBtn" disabled>Start Recording</button>
+    <div id="bufferInfo"></div>
+    <div id="results"></div>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="lstm_inference.js"></script>
+<script src="test_word_model.js"></script>
+</body>
+</html>

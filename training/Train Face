@@ -1,0 +1,76 @@
+"""
+Trains on the hands+pose+face dataset with the same group-aware split
+(no augmentation leakage) used for train_model_v3.py, so this is a fair,
+apples-to-apples comparison against the hands+pose-only baseline.
+"""
+
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import GroupShuffleSplit
+
+DATA_PATH = "/home/claude/wlasl_data_v2/dataset_face.npz"
+
+data = np.load(DATA_PATH, allow_pickle=True)
+X, y_raw, groups = data["X"], data["y"], data["groups"]
+
+print(f"Dataset: {X.shape[0]} sequences ({len(set(groups.tolist()))} real clips)")
+print(f"Shape per sequence: {X.shape[1:]}")
+
+le = LabelEncoder()
+y = le.fit_transform(y_raw)
+num_classes = len(le.classes_)
+print(f"Classes: {num_classes}")
+
+gss = GroupShuffleSplit(n_splits=1, test_size=0.25, random_state=42)
+train_idx, test_idx = next(gss.split(X, y, groups))
+
+X_train, X_test = X[train_idx], X[test_idx]
+y_train, y_test = y[train_idx], y[test_idx]
+
+print(f"Train: {X_train.shape[0]}, Test: {X_test.shape[0]}")
+print(f"Test set covers {len(set(y_test.tolist()))} / {num_classes} words")
+
+model_path = "/home/claude/wlasl_data_v2/model_face.keras"
+import os as _os
+if _os.path.exists(model_path):
+    print(f"Resuming from checkpoint: {model_path}")
+    model = tf.keras.models.load_model(model_path)
+else:
+    model = models.Sequential([
+        layers.Input(shape=(X.shape[1], X.shape[2])),
+        layers.Masking(mask_value=0.0),
+        layers.Bidirectional(layers.LSTM(96, return_sequences=True)),
+        layers.Dropout(0.4),
+        layers.Bidirectional(layers.LSTM(48)),
+        layers.Dropout(0.4),
+        layers.Dense(96, activation="relu"),
+        layers.Dropout(0.4),
+        layers.Dense(num_classes, activation="softmax"),
+    ])
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.0008),
+                  loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+model.summary()
+
+early_stop = tf.keras.callbacks.EarlyStopping(monitor="val_accuracy", patience=20, restore_best_weights=True)
+checkpoint = tf.keras.callbacks.ModelCheckpoint(model_path, monitor="val_accuracy", save_best_only=True, verbose=0)
+
+history = model.fit(
+    X_train, y_train,
+    validation_data=(X_test, y_test),
+    epochs=25, batch_size=32, verbose=2,
+    callbacks=[early_stop, checkpoint],
+)
+
+test_loss, test_acc = model.evaluate(X_test, y_test, verbose=0)
+print(f"\n=== HELD-OUT TEST ACCURACY (this chunk): {test_acc:.3f} ===")
+
+probs = model.predict(X_test, verbose=0)
+top3_correct = sum(1 for i, p in enumerate(probs) if y_test[i] in np.argsort(p)[-3:])
+print(f"Top-3 accuracy: {top3_correct / len(y_test):.3f}")
+
+import pickle
+with open("/home/claude/wlasl_data_v2/label_encoder_face.pkl", "wb") as f:
+    pickle.dump(le, f)
+print("Checkpoint saved.")
